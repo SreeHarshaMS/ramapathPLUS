@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RamaPath – Quiz Empowerment Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    .game-ui {
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    #score,
+    #level,
+    #health {
+      margin-bottom: 12px;
+      font-size: 21px;
+    }
+    .controls {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      user-select: none;
+    }
+    canvas {
+      display: block;
+      position: relative;
+      z-index: 1;
+      touch-action: none;
+    }
+    .stars, .stars div {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .quiz-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      color: #fff;
+    }
+    .quiz-box {
+      background: #222;
+      border-radius: 12px;
+      padding: 32px 24px;
+      min-width: 320px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      text-align: center;
+    }
+    .quiz-q {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    .quiz-options {
+      margin-bottom: 18px;
+    }
+    .quiz-options button {
+      display: block;
+      margin: 8px auto;
+      background: #ffd700;
+      color: #222;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 18px;
+      cursor: pointer;
+      min-width: 120px;
+      transition: background 0.15s;
+    }
+    .quiz-options button:hover {
+      background: #ffec99;
+    }
+    .quiz-result {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    #touchControls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      user-select: none;
+      display: flex;
+      gap: 20px;
+    }
+    #touchControls button {
+      width: 60px;
+      height: 60px;
+      font-size: 30px;
+      background: rgba(255, 215, 0, 0.85);
+      border: none;
+      border-radius: 8px;
+      color: #222;
+      user-select: none;
+      touch-action: none;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    #touchControls button:active {
+      background: #ffec99;
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="game-ui">
+    <div id="score">Score: 0</div>
+    <div id="level">Level: 1</div>
+    <div id="health">Health: ❤❤❤</div>
+  </div>
+  <div class="controls">SPACEBAR shoots | ARROWS move | Shoot a head to answer quiz!</div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <div id="touchControls">
+    <button id="btnLeft">◀</button>
+    <button id="btnShoot">↑</button>
+    <button id="btnRight">▶</button>
+  </div>
+
+  <div id="quizModal" class="quiz-modal" style="display:none;">
+    <div class="quiz-box">
+      <div class="quiz-q" id="quizQ"></div>
+      <div class="quiz-options" id="quizOpts"></div>
+      <div class="quiz-result" id="quizResult"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    const bgImg = new Image();
+    bgImg.src = "background.jpg";
+
+    const ravanaImg = new Image();
+    ravanaImg.src = "ravana_head.jpg";
+
+    const bowImg = new Image();
+    bowImg.src = "bow.png";
+
+    const CHALLENGES = [
+      "Solve: Malnutrition in Youth",
+      "Improve: Clean Water Access",
+      "Innovate: Eco-friendly Agriculture",
+      "Empower: Digital Education",
+      "Advance: Rural Healthcare",
+      "Promote: Renewable Energy",
+      "Support: Preventive Health",
+      "Help: Youth Skill-building",
+      "Create: Gender Equality",
+      "Lead: Climate Action",
+    ];
+
+    const QUIZ = [
+      { q: "Who is Rama's wife?", opts: ["Sita", "Draupadi", "Radha"], ans: 0 },
+      { q: "Who is the demon king that Rama fights?", opts: ["Ravana", "Kumbhakarna", "Vibhishana"], ans: 0 },
+      { q: "How many heads did Ravana have?", opts: ["10", "7", "5"], ans: 0 },
+      { q: "Who is Rama's brother who accompanies him?", opts: ["Lakshmana", "Bharata", "Shatrughna"], ans: 0 },
+      { q: "What forest was Rama exiled to?", opts: ["Dandaka", "Khandava", "Naimisha"], ans: 0 },
+      { q: "Who helps Rama find Sita?", opts: ["Hanuman", "Vibhishana", "Sugriva"], ans: 0 },
+      { q: "Who is the monkey king allied with Rama?", opts: ["Sugriva", "Angada", "Vali"], ans: 0 },
+      { q: "What weapon does Rama use to kill Ravana?", opts: ["Brahmastra", "Sudarshana Chakra", "Gada"], ans: 0 },
+      { q: "Sita was abducted by Ravana to which kingdom?", opts: ["Lanka", "Ayodhya", "Kashi"], ans: 0 },
+      { q: "Who is Ravana's brother who turns ally to Rama?", opts: ["Vibhishana", "Kumbhakarna", "Indrajit"], ans: 0 },
+    ];
+
+    let remainingQuizIndices = [...Array(QUIZ.length).keys()];
+
+    let gameState = {
+      arrows: [],
+      ravanaHeads: [],
+      score: 0,
+      level: 1,
+      health: 3,
+      keys: {},
+      ramaX: canvas.width / 2,
+      ramaY: canvas.height - 80,
+      quizActive: false,
+    };
+
+    function createStars() {
+      const stars = document.querySelector(".stars");
+      stars.innerHTML = "";
+      for (let i = 0; i < 120; i++) {
+        const s = document.createElement("div");
+        s.style.width = "2px";
+        s.style.height = "2px";
+        s.style.background = "white";
+        s.style.left = Math.random() * 100 + "%";
+        s.style.top = Math.random() * 100 + "%";
+        s.style.opacity = 0.3 + 0.7 * Math.random();
+        s.style.position = "absolute";
+        s.style.animation = `twinkle ${1.5 + Math.random()}s infinite ease-in-out`;
+        stars.appendChild(s);
+      }
+    }
+    const style = document.createElement("style");
+    style.textContent = `@keyframes twinkle{0%,100%{opacity:.3;}50%{opacity:1;}}`;
+    document.head.appendChild(style);
+
+    class Arrow {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.speed = -8;
+      }
+      update() {
+        this.y += this.speed;
+      }
+      draw() {
+        ctx.save();
+        ctx.strokeStyle = "gold";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x, this.y - 40);
+        ctx.stroke();
+        ctx.fillStyle = "gold";
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - 46);
+        ctx.lineTo(this.x - 7, this.y - 40);
+        ctx.lineTo(this.x + 7, this.y - 40);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class RavanaHead {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.r = 76;
+        this.alive = true;
+      }
+      draw() {
+        if (!this.alive) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(ravanaImg, this.x - this.r, this.y - this.r, this.r * 2, this.r * 2);
+        ctx.restore();
+      }
+      unlock() {
+        this.alive = false;
+      }
+    }
+
+    function showQuiz(unlockCb) {
+      if (remainingQuizIndices.length === 0) {
+        remainingQuizIndices = [...Array(QUIZ.length).keys()];
+      }
+      const randIdx = Math.floor(Math.random() * remainingQuizIndices.length);
+      const quizIndex = remainingQuizIndices.splice(randIdx, 1)[0];
+      gameState.quizActive = true;
+      document.getElementById("quizQ").textContent = QUIZ[quizIndex].q;
+      const quizOpts = document.getElementById("quizOpts");
+      quizOpts.innerHTML = "";
+      document.getElementById("quizResult").textContent = "";
+      QUIZ[quizIndex].opts.forEach((opt, i) => {
+        const btn = document.createElement("button");
+        btn.textContent = opt;
+        btn.onclick = function () {
+          if (i === QUIZ[quizIndex].ans) {
+            document.getElementById("quizResult").textContent = "Correct!";
+            setTimeout(() => {
+              document.getElementById("quizModal").style.display = "none";
+              gameState.quizActive = false;
+              unlockCb();
+              gameState.score += 15;
+              updateUI();
+            }, 700);
+          } else {
+            document.getElementById("quizResult").textContent = "Try again!";
+          }
+        };
+        quizOpts.appendChild(btn);
+      });
+      document.getElementById("quizModal").style.display = "flex";
+    }
+
+    function shootArrow() {
+      if (gameState.quizActive) return;
+      gameState.arrows.push(new Arrow(gameState.ramaX, gameState.ramaY + 40));
+    }
+
+    function spawnRavana() {
+      gameState.ravanaHeads = [];
+      let count = Math.min(10, gameState.level + 2, CHALLENGES.length);
+      let gap = canvas.width / (count + 1);
+      for (let i = 0; i < count; i++) {
+        let rx = gap * (i + 1);
+        let ry = 120 + 40 * Math.sin(i);
+        gameState.ravanaHeads.push(new RavanaHead(rx, ry));
+      }
+    }
+
+    function updateUI() {
+      document.getElementById("score").textContent = `Score: ${gameState.score}`;
+      document.getElementById("level").textContent = `Level: ${gameState.level}`;
+      document.getElementById("health").textContent = `Health: ${"❤".repeat(gameState.health)}`;
+    }
+
+    // Touch controls for mobile
+    window.addEventListener('DOMContentLoaded', () => {
+      const btnLeft = document.getElementById('btnLeft');
+      const btnRight = document.getElementById('btnRight');
+      const btnShoot = document.getElementById('btnShoot');
+
+      btnLeft.addEventListener('touchstart', e => {
+        e.preventDefault();
+        gameState.keys['ArrowLeft'] = true;
+      });
+      btnLeft.addEventListener('touchend', e => {
+        e.preventDefault();
+        gameState.keys['ArrowLeft'] = false;
+      });
+
+      btnRight.addEventListener('touchstart', e => {
+        e.preventDefault();
+        gameState.keys['ArrowRight'] = true;
+      });
+      btnRight.addEventListener('touchend', e => {
+        e.preventDefault();
+        gameState.keys['ArrowRight'] = false;
+      });
+
+      btnShoot.addEventListener('touchstart', e => {
+        e.preventDefault();
+        shootArrow();
+      });
+
+      ['touchstart', 'touchmove', 'touchend'].forEach(evt => {
+        btnLeft.addEventListener(evt, e => e.preventDefault());
+        btnRight.addEventListener(evt, e => e.preventDefault());
+        btnShoot.addEventListener(evt, e => e.preventDefault());
+      });
+    });
+
+    window.addEventListener("keydown", (e) => {
+      gameState.keys[e.code] = true;
+      if (e.code === "Space") shootArrow();
+    });
+    window.addEventListener("keyup", (e) => (gameState.keys[e.code] = false));
+
+    function update() {
+      if (bgImg.complete) {
+        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.strokeStyle = "gold";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(gameState.ramaX - 16 - i * 3, gameState.ramaY + 44 + i * 3);
+        ctx.lineTo(gameState.ramaX - 4 - i * 2, gameState.ramaY + 25 + i * 2);
+        ctx.stroke();
+        ctx.fillStyle = "gold";
+        ctx.beginPath();
+        ctx.arc(gameState.ramaX - 4 - i * 2, gameState.ramaY + 25 + i * 2, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = "royalblue";
+      ctx.fillRect(gameState.ramaX - 10, gameState.ramaY + 28, 20, 24);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(gameState.ramaX, gameState.ramaY + 20, 13, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fillStyle = "#ffe4b5";
+      ctx.fill();
+      ctx.restore();
+
+      if (bowImg.complete) {
+        ctx.save();
+        ctx.translate(gameState.ramaX, gameState.ramaY + 40);
+        ctx.rotate(-Math.PI / 2);
+        ctx.drawImage(bowImg, -75, -75, 150, 150);
+        ctx.restore();
+      }
+
+      for (let ai = gameState.arrows.length - 1; ai >= 0; ai--) {
+        const a = gameState.arrows[ai];
+        a.update();
+        a.draw();
+        if (a.y < 0) {
+          gameState.arrows.splice(ai, 1);
+          continue;
+        }
+        gameState.ravanaHeads.forEach((head) => {
+          if (
+            head.alive &&
+            !gameState.quizActive &&
+            a.x > head.x - head.r &&
+            a.x < head.x + head.r &&
+            a.y > head.y - head.r &&
+            a.y < head.y + head.r
+          ) {
+            gameState.arrows.splice(ai, 1);
+            showQuiz(() => {
+              head.unlock();
+              updateUI();
+
+              if (gameState.ravanaHeads.every((h) => !h.alive)) {
+                setTimeout(() => {
+                  gameState.level++;
+                  gameState.health = Math.min(3, gameState.health + 1);
+                  spawnRavana();
+                  updateUI();
+                }, 1200);
+              }
+            });
+          }
+        });
+      }
+
+      gameState.ravanaHeads.forEach((head) => head.draw());
+
+      if (!gameState.quizActive) {
+        if (gameState.keys["ArrowLeft"] && gameState.ramaX > 40) gameState.ramaX -= 6;
+        if (gameState.keys["ArrowRight"] && gameState.ramaX < canvas.width - 40)
+          gameState.ramaX += 6;
+      }
+
+      if (gameState.health <= 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#ffd700";
+        ctx.font = "bold 48px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Game Over!", canvas.width / 2, canvas.height / 2);
+        ctx.font = "32px Arial";
+        ctx.fillText("Refresh to restart", canvas.width / 2, canvas.height / 2 + 80);
+        ctx.restore();
+        return;
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    createStars();
+    spawnRavana();
+    updateUI();
+    update();
+  </script>
+</body>
+</html>
