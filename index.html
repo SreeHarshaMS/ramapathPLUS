@@ -137,7 +137,7 @@
   <div class="game-ui">
     <div id="score">Score: 0</div>
     <div id="level">Level: 1</div>
-    <div id="health">Health: ❤❤❤</div>
+    <div id="health">Health: ❤❤❤❤❤</div>
   </div>
   <div class="controls">SPACEBAR shoots | ARROWS move | Shoot a head to answer quiz!</div>
   <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -190,6 +190,10 @@
     ];
 
     const QUIZ = [
+       { q: "Who was the mother of Lava and kusha?", opts: ["Sita", "Mandodari", "kaikeyi"], ans: 0 },
+       { q: "Who discovered Sita in Ashoka vatika?", opts: ["Angada", "Hanuman", "Sugriva"], ans: 1 },
+       { q: "Who adviced Ravana to return Sita to Rama?", opts: ["Kumbhakarna", "Indrajit", "Vibhishana"], ans: 2 },
+       { q: "Who is Killed Kumbakarna?", opts: ["Lakshmana", "Sugriva", "Rama"], ans: 2 },
       { q: "Who is Rama's wife?", opts: ["Sita", "Draupadi", "Radha"], ans: 0 },
       { q: "Who is the demon king that Rama fights?", opts: ["Ravana", "Kumbhakarna", "Vibhishana"], ans: 0 },
       { q: "How many heads did Ravana have?", opts: ["10", "7", "5"], ans: 0 },
@@ -493,3 +497,4 @@
   </script>
 </body>
 </html>
+
